@@ -1,9 +1,11 @@
-import {View, Button, Text} from 'react-native';
-import React from 'react';
+import {View} from 'react-native';
+import React, { useRef } from 'react';
 import {RNCamera} from 'react-native-camera';
 import { PrimaryButton } from '../components/Button';
 
 export default function HomeScreen() {
+  const cameraRef = useRef<RNCamera>(null);
+  
   return (
     <View>
       <View style={{
