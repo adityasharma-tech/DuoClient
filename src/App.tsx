@@ -9,7 +9,17 @@ function App(): React.JSX.Element {
 
   return (
     <NavigationContainer>
-        <Stack.Navigator>
+        <Stack.Navigator screenOptions={{
+          title: 'DuoClient',
+          headerTitleAlign: 'center',
+          headerTitleStyle: {
+            fontSize: 16
+          },
+          headerShadowVisible: false,
+          contentStyle: {
+            padding: 5
+          }
+        }}>
             <Stack.Screen name="Home" component={HomeScreen} />
         </Stack.Navigator>
     </NavigationContainer>
