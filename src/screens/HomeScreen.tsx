@@ -1,12 +1,15 @@
-import {View} from 'react-native';
+import {View, Text} from 'react-native';
 import React, {useRef, useState} from 'react';
 import {RNCamera} from 'react-native-camera';
 import {PrimaryButton} from '../components/Button';
 import TcpSocket from 'react-native-tcp-socket';
+import {NetworkInfo} from 'react-native-network-info';
 
 export default function HomeScreen() {
   const cameraRef = useRef<RNCamera>(null);
   const [server, setServer] = useState<any>(null);
+  const [ipv4Address, setIPv4Address] = useState<string | null>(null);
+  const [useFrontCameraType, setUseFrontCameraType] = useState<boolean>(false);
 
   React.useEffect(() => {
     const tcpServer = TcpSocket.createServer(function (socket) {
@@ -26,11 +29,13 @@ export default function HomeScreen() {
         console.log('Connection closed');
       });
     });
-    tcpServer.listen({port: 8002, host: '0.0.0.0'}, () => {
-      console.log('server is running on port 8002');
+    NetworkInfo.getIPV4Address().then(ipv4Add => {
+      setIPv4Address(ipv4Add);
+      tcpServer.listen({port: 8002, host: ipv4Add || '0.0.0.0'}, () => {
+        console.log('server is running on port 8002');
+      });
+      setServer(tcpServer);
     });
-
-    setServer(tcpServer);
 
     return () => {
       tcpServer.close();
@@ -38,18 +43,32 @@ export default function HomeScreen() {
   }, []);
 
   const sendFrame = async () => {
-    if(cameraRef.current){
-      const data = await cameraRef.current.takePictureAsync({ base64: true })
-      if(!data.base64) return;
+    if (cameraRef.current) {
+      const data = await cameraRef.current.takePictureAsync({base64: true});
+      if (!data.base64) return;
       const frame = Buffer.from(data.base64, 'base64');
-      if(server) {
-        server.write(frame)
+      if (server) {
+        server.write(frame);
       }
     }
-  }
+  };
 
   return (
     <View>
+      <View
+        style={{
+          marginVertical: 10,
+        }}>
+        <Text
+          style={{
+            color: 'black',
+            textAlign: 'center',
+            fontWeight: '900',
+            fontSize: 16,
+          }}>
+          Server is running on {ipv4Address}:8002
+        </Text>
+      </View>
       <View
         style={{
           width: 1080 * 0.3,
@@ -62,7 +81,7 @@ export default function HomeScreen() {
         <RNCamera
           captureAudio={false}
           ref={cameraRef}
-          type="back"
+          type={useFrontCameraType ? 'back' : 'front'}
           style={{
             width: '100%',
             height: '100%',
@@ -71,11 +90,16 @@ export default function HomeScreen() {
       </View>
       <View
         style={{
-          marginTop: 10,
+          marginTop: 40,
           flexDirection: 'row',
-          justifyContent: 'space-around',
+          justifyContent: 'center',
+          gap: 5,
         }}>
-        <PrimaryButton onPress={() => {}}>Start Server</PrimaryButton>
+        <PrimaryButton onPress={sendFrame}> Send Frame </PrimaryButton>
+        <PrimaryButton
+          onPress={() => setUseFrontCameraType(!useFrontCameraType)}>
+          Toogle Camera
+        </PrimaryButton>
       </View>
     </View>
   );
