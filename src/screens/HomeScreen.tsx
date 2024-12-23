@@ -1,14 +1,18 @@
-import {View, Button} from 'react-native';
+import {View, Button, Text} from 'react-native';
 import React from 'react';
 import {RNCamera} from 'react-native-camera';
+import { PrimaryButton } from '../components/Button';
 
 export default function HomeScreen() {
   return (
     <View>
       <View style={{
-        width: '75%',
-        height: 400,
+        width: 1080*0.3,
+        height: 1920*0.3,
         alignSelf: 'center',
+        overflow: 'hidden',
+        position:'relative',
+        borderRadius: 5
       }}>
         <RNCamera
           type="back"
@@ -19,10 +23,12 @@ export default function HomeScreen() {
         />
       </View>
       <View style={{
-        marginTop: 10
+        marginTop: 10,
+        flexDirection: 'row',
+        justifyContent: 'space-around'
       }}>
-
-      <Button title="Start server" />
+        
+      <PrimaryButton onPress={()=>{}}>Start Server</PrimaryButton>
       </View>
     </View>
   );
