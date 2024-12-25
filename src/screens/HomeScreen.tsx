@@ -43,7 +43,7 @@ export default function HomeScreen() {
   }, []);
 
   React.useEffect(()=>{
-    const sI = setInterval(sendFrame, 720);
+    const sI = setInterval(sendFrame, 2000);
     return ()=> clearInterval(sI);
   }, [])
 
@@ -64,7 +64,6 @@ export default function HomeScreen() {
     if (!base64) return;
     try {
       const frame = Buffer.from(base64, 'base64');
-      console.log(frame.byteLength);
       const frameLength = Buffer.alloc(4);
       frameLength.writeUInt32BE(frame.length, 0);
       if (socket != null) {
@@ -118,7 +117,6 @@ export default function HomeScreen() {
           justifyContent: 'center',
           gap: 5,
         }}>
-        <PrimaryButton onPress={sendFrame}> Send Frame </PrimaryButton>
         <PrimaryButton
           onPress={() => setUseFrontCameraType(!useFrontCameraType)}>
           Toogle Camera
