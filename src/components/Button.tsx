@@ -23,7 +23,6 @@ export function PrimaryButton({
       onPress={onPress}
       activeOpacity={0.7}
       style={[
-        containerStyle,
         {
           paddingHorizontal: 48,
           display: 'flex',
@@ -31,6 +30,7 @@ export function PrimaryButton({
           backgroundColor: 'black',
           borderRadius: 10,
         },
+        containerStyle
       ]}>
       <Text
         style={[

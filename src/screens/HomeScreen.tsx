@@ -1,21 +1,33 @@
 import {View, Text} from 'react-native';
 import React, {useRef, useState} from 'react';
-import {RNCamera} from 'react-native-camera';
 import {PrimaryButton} from '../components/Button';
 import TcpSocket from 'react-native-tcp-socket';
 import {NetworkInfo} from 'react-native-network-info';
+import {Buffer} from 'buffer';
+import {
+  Camera,
+  Frame,
+  useCameraDevice,
+  useCameraPermission,
+  useFrameProcessor,
+} from 'react-native-vision-camera';
 
 export default function HomeScreen() {
-  const cameraRef = useRef<RNCamera>(null);
-  const [server, setServer] = useState<any>(null);
+  const backCamera = useCameraDevice('back');
+  const frontCamera = useCameraDevice('front');
+  const {hasPermission} = useCameraPermission();
+
+  const cameraRef = useRef<Camera>(null);
+  const [isBrodcasting, setIsBrodcasting] = useState(false);
   const [ipv4Address, setIPv4Address] = useState<string | null>(null);
   const [useFrontCameraType, setUseFrontCameraType] = useState<boolean>(false);
+  const [socket, setSocket] = React.useState<TcpSocket.Socket | null>(null);
 
   React.useEffect(() => {
     const tcpServer = TcpSocket.createServer(function (socket) {
       console.log('Client connected: ', socket.address());
 
-      socket.write('Camera stream started\n');
+      setSocket(socket);
 
       socket.on('data', data => {
         console.log('Data received:', data.toString());
@@ -34,7 +46,6 @@ export default function HomeScreen() {
       tcpServer.listen({port: 8002, host: ipv4Add || '0.0.0.0'}, () => {
         console.log('server is running on port 8002');
       });
-      setServer(tcpServer);
     });
 
     return () => {
@@ -42,14 +53,43 @@ export default function HomeScreen() {
     };
   }, []);
 
+  const startRecording = async () => {
+    setIsBrodcasting(!isBrodcasting);
+    if (cameraRef.current) {
+      cameraRef.current.takeSnapshot()
+    }
+    // setIsBrodcasting(false)
+  };
+
+  const frameProcessor = useFrameProcessor((frame: Frame)=>{
+    'worklet'
+  }, [])
+
   const sendFrame = async () => {
     if (cameraRef.current) {
-      const data = await cameraRef.current.takePictureAsync({base64: true});
-      if (!data.base64) return;
-      const frame = Buffer.from(data.base64, 'base64');
-      if (server) {
-        server.write(frame);
+      // const data = await cameraRef.current.takePictureAsync({
+      //   base64: true,
+      //   doNotSave: true,
+      //   quality: 0.3,
+      //   width: 420
+      // });
+      // await sendData(data.base64)
+    }
+  };
+
+  const sendData = async (base64: string | undefined) => {
+    if (!base64) return;
+    try {
+      const frame = Buffer.from(base64, 'base64');
+      console.log(frame.byteLength);
+      const frameLength = Buffer.alloc(4);
+      frameLength.writeUInt32BE(frame.length, 0);
+      if (socket != null) {
+        socket.write(frameLength);
+        socket.write(frame);
       }
+    } catch (error) {
+      console.error('Error during frames: ', error);
     }
   };
 
@@ -77,23 +117,31 @@ export default function HomeScreen() {
           overflow: 'hidden',
           position: 'relative',
           borderRadius: 5,
+          borderWidth: 1,
+          borderColor: isBrodcasting ? '#e74c3c' : '#ffffff',
+          elevation: 1,
         }}>
-        <RNCamera
-          captureAudio={false}
-          ref={cameraRef}
-          type={useFrontCameraType ? 'back' : 'front'}
-          style={{
-            width: '100%',
-            height: '100%',
-          }}
-        />
+        {hasPermission && frontCamera != null && backCamera != null ? (
+          <Camera
+          frameProcessor={frameProcessor}
+            device={useFrontCameraType ? frontCamera : backCamera}
+            isActive={true}
+            ref={cameraRef}
+            style={{
+              width: '100%',
+              height: '100%',
+            }}
+          />
+        ) : null}
       </View>
       <View
         style={{
           marginTop: 40,
           flexDirection: 'row',
           justifyContent: 'center',
-          gap: 5,
+          gap: 6,
+          width: '80%',
+          alignSelf: 'center',
         }}>
         <PrimaryButton onPress={sendFrame}> Send Frame </PrimaryButton>
         <PrimaryButton
@@ -101,6 +149,16 @@ export default function HomeScreen() {
           Toogle Camera
         </PrimaryButton>
       </View>
+      <PrimaryButton
+        containerStyle={{
+          width: '80%',
+          marginTop: 5,
+          alignSelf: 'center',
+          backgroundColor: isBrodcasting ? '#e74c3c' : '#000000',
+        }}
+        onPress={startRecording}>
+        {isBrodcasting ? 'Stop recording' : 'Start recording'}
+      </PrimaryButton>
     </View>
   );
 }
