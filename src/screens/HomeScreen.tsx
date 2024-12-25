@@ -4,28 +4,29 @@ import {RNCamera} from 'react-native-camera';
 import {PrimaryButton} from '../components/Button';
 import TcpSocket from 'react-native-tcp-socket';
 import {NetworkInfo} from 'react-native-network-info';
+import {Buffer} from 'buffer'
 
 export default function HomeScreen() {
   const cameraRef = useRef<RNCamera>(null);
-  const [server, setServer] = useState<any>(null);
+  const [socket, setSocket] = useState<TcpSocket.Socket|null>(null);
   const [ipv4Address, setIPv4Address] = useState<string | null>(null);
   const [useFrontCameraType, setUseFrontCameraType] = useState<boolean>(false);
 
   React.useEffect(() => {
-    const tcpServer = TcpSocket.createServer(function (socket) {
-      console.log('Client connected: ', socket.address());
+    const tcpServer = TcpSocket.createServer(function (st) {
+      console.log('Client connected: ', st.address());
 
-      socket.write('Camera stream started\n');
+      setSocket(socket)
 
-      socket.on('data', data => {
+      st.on('data', data => {
         console.log('Data received:', data.toString());
       });
 
-      socket.on('error', error => {
+      st.on('error', error => {
         console.error('Socket error:', error);
       });
 
-      socket.on('close', () => {
+      st.on('close', () => {
         console.log('Connection closed');
       });
     });
@@ -34,7 +35,6 @@ export default function HomeScreen() {
       tcpServer.listen({port: 8002, host: ipv4Add || '0.0.0.0'}, () => {
         console.log('server is running on port 8002');
       });
-      setServer(tcpServer);
     });
 
     return () => {
@@ -42,14 +42,37 @@ export default function HomeScreen() {
     };
   }, []);
 
+  React.useEffect(()=>{
+    const sI = setInterval(sendFrame, 720);
+    return ()=> clearInterval(sI);
+  }, [])
+
   const sendFrame = async () => {
     if (cameraRef.current) {
-      const data = await cameraRef.current.takePictureAsync({base64: true});
+      const data = await cameraRef.current.takePictureAsync({
+        base64: true,
+        quality: 0.4,
+        width: 420,
+        doNotSave: true
+      });
       if (!data.base64) return;
-      const frame = Buffer.from(data.base64, 'base64');
-      if (server) {
-        server.write(frame);
+      sendData(data.base64)
+    }
+  };
+
+  const sendData = async (base64: string | undefined) => {
+    if (!base64) return;
+    try {
+      const frame = Buffer.from(base64, 'base64');
+      console.log(frame.byteLength);
+      const frameLength = Buffer.alloc(4);
+      frameLength.writeUInt32BE(frame.length, 0);
+      if (socket != null) {
+        socket.write(frameLength);
+        socket.write(frame);
       }
+    } catch (error) {
+      console.error('Error during frames: ', error);
     }
   };
 
